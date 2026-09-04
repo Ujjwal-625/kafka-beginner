@@ -1,5 +1,6 @@
 package io.conduktor.demos.kafka.opensearch;
 
+import com.google.gson.JsonParser;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -39,7 +40,6 @@ public class OpenSearchConsumer {
         URI connUri = URI.create(connString);
         // extract login information if it exists
         String userInfo = connUri.getUserInfo();
-
         if (userInfo == null) {
             // REST client without security
             restHighLevelClient = new RestHighLevelClient(RestClient.builder(new HttpHost(connUri.getHost(), connUri.getPort(), "http")));
@@ -81,6 +81,15 @@ public class OpenSearchConsumer {
 
     }
 
+    private static String extractId(String json){
+        return JsonParser.parseString(json)
+                .getAsJsonObject()
+                .get("meta")
+                .getAsJsonObject()
+                .get("id")
+                .getAsString();
+    }
+
     public static void main(String[] args) throws IOException {
 
         Logger logger = Logger.getLogger(OpenSearchConsumer.class.getName());
@@ -109,11 +118,19 @@ public class OpenSearchConsumer {
                 logger.info(recordCount + " records received");
 
                 for (ConsumerRecord<String, String> record1 : record) {
-                    IndexRequest indexRequest = new IndexRequest("wikimedia").source(record1.value(), XContentType.JSON);
+                    try{
+                        String id = extractId(record1.value());
 
-                    IndexResponse response=openSearchClient.index(indexRequest, RequestOptions.DEFAULT);
+                        IndexRequest indexRequest = new IndexRequest("wikimedia")
+                                .source(record1.value(), XContentType.JSON)
+                                .id(id);
 
-                    logger.info(response.getId());
+                        IndexResponse response = openSearchClient.index(indexRequest,RequestOptions.DEFAULT);
+
+                        logger.info(response.getId());
+                    }catch (Exception e){
+
+                    }
                 }
 
             }
