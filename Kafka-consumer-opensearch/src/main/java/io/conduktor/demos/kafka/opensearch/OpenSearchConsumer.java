@@ -131,13 +131,14 @@ public class OpenSearchConsumer {
                         IndexResponse response = openSearchClient.index(indexRequest,RequestOptions.DEFAULT);
 
                         logger.info(response.getId()+"This is Id");
-                        //commit the offsets after messages are consumed .
-                        kafkaConsumer.commitSync();
-                        logger.info("offsets are now Commited");
                     }catch (Exception e){
 
                     }
                 }
+
+                //commit the offsets after messages are consumed . after processing all the records now we will commit the offsets
+                kafkaConsumer.commitSync();
+                logger.info("offsets are now Commited");
 
             }
 
