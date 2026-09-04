@@ -21,6 +21,7 @@ import org.opensearch.client.RestClient;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -30,6 +31,8 @@ import java.util.Properties;
 import java.util.logging.Logger;
 
 public class OpenSearchConsumer {
+
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(OpenSearchConsumer.class);
 
     public static RestHighLevelClient createOpenSearchClient() {
         String connString = "http://localhost:9200";
@@ -127,7 +130,10 @@ public class OpenSearchConsumer {
 
                         IndexResponse response = openSearchClient.index(indexRequest,RequestOptions.DEFAULT);
 
-                        logger.info(response.getId());
+                        logger.info(response.getId()+"This is Id");
+                        //commit the offsets after messages are consumed .
+                        kafkaConsumer.commitSync();
+                        logger.info("offsets are now Commited");
                     }catch (Exception e){
 
                     }
