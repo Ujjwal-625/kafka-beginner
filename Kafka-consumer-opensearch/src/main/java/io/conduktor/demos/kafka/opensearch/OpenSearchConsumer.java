@@ -14,6 +14,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
+import org.opensearch.action.bulk.BulkRequest;
+import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.index.IndexResponse;
 import org.opensearch.client.RequestOptions;
@@ -120,6 +122,10 @@ public class OpenSearchConsumer {
                 int recordCount = record.count();
                 logger.info(recordCount + " records received");
 
+                // now we will use batching using bulkrequest
+
+                BulkRequest bulkRequest = new BulkRequest();
+
                 for (ConsumerRecord<String, String> record1 : record) {
                     try{
                         String id = extractId(record1.value());
@@ -127,18 +133,38 @@ public class OpenSearchConsumer {
                         IndexRequest indexRequest = new IndexRequest("wikimedia")
                                 .source(record1.value(), XContentType.JSON)
                                 .id(id);
+                        //removing this due to bulkRequest
+//                        IndexResponse response = openSearchClient.index(indexRequest,RequestOptions.DEFAULT);
+//                        logger.info(response.getId()+"This is Id");
 
-                        IndexResponse response = openSearchClient.index(indexRequest,RequestOptions.DEFAULT);
+                        bulkRequest.add(indexRequest);
 
-                        logger.info(response.getId()+"This is Id");
                     }catch (Exception e){
 
                     }
                 }
 
-                //commit the offsets after messages are consumed . after processing all the records now we will commit the offsets
-                kafkaConsumer.commitSync();
-                logger.info("offsets are now Commited");
+                // now after batch is ready
+                if(bulkRequest.numberOfActions()>0)
+                {
+                    BulkResponse bulkResponse= openSearchClient.bulk(bulkRequest, RequestOptions.DEFAULT);
+                    logger.info("Inserted "+ bulkResponse.getItems().length + " records");
+
+                    //making some dealy to increase the chances of getting bulk upload
+
+                    try{
+                        Thread.sleep(20000);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    //commit the offsets after messages are consumed . after processing all the records now we will commit the offsets
+                    kafkaConsumer.commitSync();
+                    logger.info("offsets are now Commited");
+                    //offsets should only be commited only if we are doing bulk Request
+
+                }
+
+
 
             }
 
